@@ -1,0 +1,22 @@
+name: test
+on:
+  push:
+
+jobs:
+  updpkgsums:
+    runs-on: ubuntu-22.04
+    steps:
+      -
+        uses: actions/checkout@v4
+        with:
+          repository: rodriguezst/manjaro-kernel-nabu
+          path: srcdir
+          fetch-depth: '1'
+      -
+        uses: rodriguezst/action-updpkgsums@main
+        with:
+          path: srcdir
+      - 
+        run: |
+          cd srcdir
+          git diff
