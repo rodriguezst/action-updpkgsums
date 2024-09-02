@@ -1,0 +1,66 @@
+name: 'Pacman updpkgsums action'
+description: 'Update checksums of a PKGBUILD file'
+inputs:
+  path:
+    description: 'path to srcdir with PKGBUILD file'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    -  
+      name: install-build-dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt install \
+          meson \
+          libarchive-dev
+          
+    - 
+      name: install pacman
+      shell: bash
+      env:
+        PACMAN_VERSION: 6.0.2
+      run: |
+        sudo git clone --depth 1 https://gitlab.manjaro.org/packages/core/pacman.git
+        pushd pacman
+          sudo wget https://sources.archlinux.org/other/pacman/pacman-${PACMAN_VERSION}.tar.xz
+          sudo tar -xvf pacman-${PACMAN_VERSION}.tar.xz
+          pushd pacman-${PACMAN_VERSION}
+            sudo meson --prefix=/usr \
+                      --buildtype=plain \
+                      -Ddoc=disabled \
+                      -Ddoxygen=enabled \
+                      -Dscriptlet-shell=/usr/bin/bash \
+                      -Dldconfig=/usr/bin/ldconfig \
+                      build
+            sudo meson compile -C build
+            sudo meson install -C build
+          popd
+          sudo install -m644 pacman.conf /etc/pacman.conf
+          sudo install -m644 makepkg.conf /etc/
+          sudo mkdir -p /etc/pacman.d
+          sudo touch /etc/pacman.d/mirrorlist
+        popd
+    -
+      name: install pacman-contrib
+      shell: bash
+      run: |
+        git clone --depth=1 https://gitlab.archlinux.org/pacman/pacman-contrib.git pacman-contrib
+        cd pacman-contrib
+        ./autogen.sh
+        ./configure --prefix=/usr \
+          --sysconfdir=/etc \
+          --localstatedir=/var \
+          --disable-doc
+        make
+        make check
+        sudo make install
+    -
+      name: updpkgsums
+      shell: bash
+      env:
+        SRCDIR: ${{ inputs.path }}
+      run: |
+        cd ${SRCDIR}
+        updpkgsums
